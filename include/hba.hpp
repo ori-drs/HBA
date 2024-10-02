@@ -141,7 +141,7 @@ public:
       layers[i].thread_num = thread_num;
     }
     layers[0].data_path = data_path;
-    layers[0].pose_vec = mypcl::read_pose(data_path + "pose.json");
+    layers[0].pose_vec = mypcl::read_pose(data_path + "hba_poses_robotics.csv");
     layers[0].init_parameter();
     layers[0].init_storage(total_layer_num);
 

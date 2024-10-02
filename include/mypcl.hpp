@@ -21,10 +21,13 @@ namespace mypcl
 {
   struct pose
   {
-    pose(Eigen::Quaterniond _q = Eigen::Quaterniond(1, 0, 0, 0),
-         Eigen::Vector3d _t = Eigen::Vector3d(0, 0, 0)):q(_q), t(_t){}
+    pose(Eigen::Quaterniond _q = Eigen::Quaterniond(1, 0, 0, 0), Eigen::Vector3d _t = Eigen::Vector3d(0, 0, 0), 
+         double _t_sec = 0.0, double _t_nsec = 0.0, double _id = 0.0):q(_q), t(_t), t_sec(_t_sec), t_nsec(_t_nsec), id(_id) {}
     Eigen::Quaterniond q;
     Eigen::Vector3d t;
+    double t_sec;
+    double t_nsec;
+    double id;
   };
 
   void loadPCD(std::string filePath, int pcd_fill_num, pcl::PointCloud<PointType>::Ptr& pc, int num,
@@ -52,16 +55,37 @@ namespace mypcl
                               Eigen::Quaterniond qe = Eigen::Quaterniond(1, 0, 0, 0),
                               Eigen::Vector3d te = Eigen::Vector3d(0, 0, 0))
   {
+    
     std::vector<pose> pose_vec;
-    std::fstream file;
-    file.open(filename);
-    double tx, ty, tz, w, x, y, z;
-    while(!file.eof())
+    std::fstream file(filename);
+    int pose_size = 0;
+    std::string lineStr, str;
+    Eigen::Matrix4d aff;
+    std::vector<double> nums;
+
+    if(!file.is_open())
     {
-      file >> tx >> ty >> tz >> w >> x >> y >> z;
-      Eigen::Quaterniond q(w, x, y, z);
-      Eigen::Vector3d t(tx, ty, tz);
-      pose_vec.push_back(pose(qe * q, qe * t + te));
+      printf("open fail\n");
+    }
+
+    getline(file, lineStr); // Skip first line
+    while(getline(file, lineStr))
+    {
+      std::stringstream ss(lineStr);
+      while(getline(ss, str, ','))
+        nums.push_back(std::stod(str));
+      
+      Eigen::Quaterniond q(nums[9], nums[6], nums[7], nums[8]);
+      Eigen::Vector3d t(nums[3], nums[4], nums[5]);
+      pose_vec.push_back(pose(qe * q, qe * t + te, nums[1], nums[2], nums[0]));
+      //tims.push_back(nums[1] + pow(nums[2], -9));
+
+      pose_size++;
+
+      // std::cout << nums[0] << ", " << nums[1] << ", " << nums[2] << ", " << nums[3] << ", " << nums[4] << ", " 
+      //           << nums[5] << ", " << nums[6] << ", " << nums[7] << ", " << nums[8] << ", " << nums[9] << std::endl;
+
+      nums.clear();
     }
     file.close();
     return pose_vec;
@@ -140,26 +164,22 @@ namespace mypcl
   void write_pose(std::vector<pose>& pose_vec, std::string path)
   {
     std::ofstream file;
-    file.open(path + "pose.json", std::ofstream::trunc);
+    file.open(path + "hba_poses_robotics.csv", std::ofstream::trunc);
     file.close();
     Eigen::Quaterniond q0(pose_vec[0].q.w(), pose_vec[0].q.x(), pose_vec[0].q.y(), pose_vec[0].q.z());
     Eigen::Vector3d t0(pose_vec[0].t(0), pose_vec[0].t(1), pose_vec[0].t(2));
-    file.open(path + "pose.json", std::ofstream::app);
+    file.open(path + "hba_poses_robotics.csv", std::ofstream::app);
+    std::ostringstream line;
 
+    line << "# counter, sec, nsec, x, y, z, qx, qy, qz, qw\n";
     for(size_t i = 0; i < pose_vec.size(); i++)
     {
-      pose_vec[i].t << q0.inverse()*(pose_vec[i].t-t0);
-      pose_vec[i].q.w() = (q0.inverse()*pose_vec[i].q).w();
-      pose_vec[i].q.x() = (q0.inverse()*pose_vec[i].q).x();
-      pose_vec[i].q.y() = (q0.inverse()*pose_vec[i].q).y();
-      pose_vec[i].q.z() = (q0.inverse()*pose_vec[i].q).z();
-      file << pose_vec[i].t(0) << " "
-           << pose_vec[i].t(1) << " "
-           << pose_vec[i].t(2) << " "
-           << pose_vec[i].q.w() << " " << pose_vec[i].q.x() << " "
-           << pose_vec[i].q.y() << " " << pose_vec[i].q.z();
-      if(i < pose_vec.size()-1) file << "\n";
-    }
+      line << (int)pose_vec[i].id << ", " << (int)pose_vec[i].t_sec << ", " << (int)pose_vec[i].t_nsec << ", " 
+           << pose_vec[i].t(0) << ", " << pose_vec[i].t(1) << ", " << pose_vec[i].t(2) << ", "
+           << pose_vec[i].q.x() << ", " << pose_vec[i].q.y() << ", " << pose_vec[i].q.z() << ", " << pose_vec[i].q.w();
+      if(i < pose_vec.size()-1) line << "\n";
+    } 
+    file << line.str();
     file.close();
   }
 

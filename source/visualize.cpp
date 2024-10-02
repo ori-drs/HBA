@@ -55,7 +55,8 @@ int main(int argc, char** argv)
   sensor_msgs::PointCloud2 debugMsg, cloudMsg, outMsg;
   vector<mypcl::pose> pose_vec;
 
-  pose_vec = mypcl::read_pose(file_path + "pose.json");
+  pose_vec = mypcl::read_pose(file_path + "hba_poses_robotics.csv");
+  //mypcl::write_pose(pose_vec, file_path);
   size_t pose_size = pose_vec.size();
   cout<<"pose size "<<pose_size<<endl;
 
@@ -85,6 +86,7 @@ int main(int argc, char** argv)
     pc_filtered->resize(cnt);
     
     mypcl::transform_pointcloud(*pc_filtered, *pc_filtered, pose_vec[i].t, pose_vec[i].q);
+    // mypcl::savdPCD(file_path + "pcd_out/", pcd_name_fill_num, pc_filtered, i);
     downsample_voxel(*pc_filtered, downsample_size);
 
     pcl::toROSMsg(*pc_filtered, cloudMsg);
